@@ -1,0 +1,322 @@
+import java.util.*;
+
+public class StrategyLuo implements TeamController{
+
+ 	SensorPack sensors;           // The sensor pack handed to us.
+    int numPlayers;               // How many players/team.
+    ArrayList<Player> players;    // List of our players.
+    int myteam = -1;              // Our team number (0 or 1).
+    boolean onLeft;               // Are we on the left or right?
+
+    boolean debug = false;        // If we want to turn on debugging.
+    double eplison = 0.2;
+    double forward = 0;           //the direction we attack
+    boolean firstTime = true;
+    double goalX;
+    double goalYUp = 28;
+    double goalYDown = 12;
+    public String getName ()
+    {
+	return "TestTeam0";
+    }
+
+
+    public void init (SensorPack sensors, int numPlayers, int myteam, boolean onLeft) 
+    {
+        this.sensors = sensors;
+        this.numPlayers = numPlayers;
+        this.myteam = myteam;
+        this.onLeft = onLeft;
+        players = new ArrayList<Player> ();
+        if(onLeft){
+    		forward = 0;
+    		goalX = 100;
+        }
+    	else{
+    		forward = Math.PI;
+    		goalX = 0;
+    	}
+    }
+    
+    public void init (int playerNum, double initX, double initY, double initTheta)
+    {
+        Player p = new Player ();
+        p.playerNum = playerNum;
+        p.x = initX;
+        p.y = initY;
+        p.theta = initTheta;
+        players.add (p);
+        System.out.println(p.theta);
+    }
+
+    public void configureAttacker(int p, int t, double ballX, double ballY){
+        Player p1 = getPlayer(p);
+        double x = sensors.getX(myteam, p);
+        double y = sensors.getY(myteam, p);
+        double theTa = sensors.getTheta(myteam, p);
+        double angle = sensors.getAngle(x, y, ballX, ballY);
+        
+
+        if(sensors.ballHeldByTeam () == myteam && sensors.ballHeldByPlayer() == p){
+        	adjustOrientation(p);
+        	System.out.println("Hold by " + 0 + " current time " + t);
+        }else if(distance(x, y, ballX, ballY) <= 5){
+        	//System.out.println("Near the ball but not hold it current time " + t);
+        	if(Math.abs(angle - theTa) > 0.2){
+        		p1.phi = turnOrientation(theTa, angle);
+        		p1.vel = 1;
+        	}
+        	else{
+        		p1.phi = 0;
+        		p1.vel = 10;
+        	}
+        }else{
+        	if(Math.abs(angle - theTa) > 0.2){
+        		p1.phi = turnOrientation(theTa, angle);
+        		p1.vel = 10;
+        	}
+        	else{
+        		p1.vel = 10;
+        		p1.phi = 0;
+        	}
+        }
+    }
+
+    public void configureOffencer(int p, int t, double ballX, double ballY ){
+
+        Player play = getPlayer(p);
+        double x = sensors.getX(myteam, p);
+        double y = sensors.getY(myteam, p);
+        double theTa = sensors.getTheta(myteam, p);
+        double angle = sensors.getAngle(x, y, ballX, ballY);
+        System.out.println(p + " Theta " + theTa + " y " + y);
+        if(firstTime){
+        	if(Math.abs(theTa - 3 * Math.PI / 2) > 0.2){
+        			play.phi = turnOrientation(theTa, 3 * Math.PI / 2);
+        			play.vel = 0;
+        			return;
+        		}
+        	else
+        		firstTime = false;
+        }
+        if(sensors.ballHeldByTeam () == myteam && sensors.ballHeldByPlayer() == p){
+        	setDirection(p);
+        	System.out.println("Hold by " + p + " current time " + t);
+        	play.vel = 0;
+        }else if(15 < x && x < 25){
+        	if(y > 25){
+        		play.phi = turnOrientation(theTa, 3 * Math.PI / 2);
+        		play.vel = 1;
+        	}
+        	else if(y < 15){
+        		play.phi = turnOrientation(theTa, Math.PI / 2);
+        		play.vel = 1;
+        	}
+        	else{
+	        		play.phi = 0;
+	        		play.vel = 8;
+        		
+        	}
+        }
+        else if(x > 25){
+        	if(Math.abs(theTa - Math.PI) > 0.2)
+        		play.phi = turnOrientation(theTa, Math.PI);
+        	else
+        		play.phi = 0;
+        	play.vel = 1;
+
+        }
+        else if(x < 15){
+        	if(Math.abs(theTa) > 0.2)
+        		play.phi = turnOrientation(theTa, 0);
+        	else
+        		play.phi = 0;
+        	play.vel = 1;
+        }
+
+    }
+   boolean isGoalArea(int p){
+   		Player play = getPlayer(p);
+   		double x = sensors.getX(myteam, p);
+   		double y = sensors.getY(myteam, p);
+   		if(y > goalYDown && y < goalYUp){
+   			if((onLeft && x > goalX) || (!onLeft && x < goalX))
+   				return true;
+
+   		}
+   		return false;
+   }
+
+    public void move ()
+    {      
+        int t = (int) sensors.getCurrentTime ();
+    	double ballX = sensors.getBallX();
+        double ballY = sensors.getBallY();
+    	configureAttacker(0, t, ballX, ballY);
+    	configureOffencer(1, t, ballX, ballY);
+    	//configureAttacker(1, t, ballX, ballY);
+
+    }
+
+    //decide if the player is at the right orientation to attack
+    public boolean isAttackDirection(int p, double angle){
+    	Player play = getPlayer(p);
+    	double theTa = sensors.getTheta(myteam, p);
+    	double diff = theTa - forward;
+    	if(forward == 0){
+    		if(theTa > angle && theTa < (2* Math.PI - angle))
+    			return false;
+    	}
+    	else if(forward == Math.PI){
+    		if(theTa < Math.PI - angle || theTa >  Math.PI + angle)
+    			return false;
+    	}
+    	
+    	return true;
+    }
+
+    // set attack direction
+    public void setDirection(int p){   	
+    	Player play = getPlayer(p);
+    	double theTa = sensors.getTheta(myteam, p);
+    	System.out.println("theTa " + theTa + " forward " + forward);
+    	if(!isAttackDirection(p, Math.PI / 6)){
+    		play.phi = turnOrientation(theTa, forward);
+    		play.vel = 2;
+    	}else{
+    		play.phi = 0;
+    		play.vel = 10;
+    	}
+
+    }
+    // adjust the orientation of attack to the goal
+    public boolean isAttackRange(double ballX, double ballY, double theTa, double x, double y){
+    	//if(theTa > Math.min(a1, a2) && theTa< Math.max(a1, a2))
+    	//	return true;
+    	return false;
+    }
+
+    public boolean adjustOrientation(int p){
+    	Player play = getPlayer(p);
+    	double x = sensors.getX(myteam, p);
+    	double y = sensors.getY(myteam, p);
+    	double ballX = sensors.getBallX();
+    	double ballY = sensors.getBallX();
+    	double theTa = sensors.getTheta(myteam, p);
+    	double a1 = sensors.getAngle(x, y , goalX, goalYUp);
+    	double a2 = sensors.getAngle(x, y, goalX, goalYDown);
+    	if(theTa > Math.min(a1, a2) && theTa< Math.max(a1, a2)){
+    		play.phi = 0;
+    		play.vel = 10;
+    		return true;
+
+    	}
+    	else{
+    		double diff1 = Math.abs(theTa - a1);
+    		double diff2 = Math.abs(theTa - a2);
+    		double target = diff1 > diff2 ? a2 : a1;
+    		play.phi = turnOrientation(theTa, target);
+    		play.vel = 2; 
+    		return false;
+    	}
+    }
+
+    // get the minimal orientation to turn
+    public double turnOrientation(double o, double t){
+    	double diff = Math.abs(o - t);
+    	double phi = 0;
+    	if(diff <= Math.PI){
+    		if(o > t)
+    			phi = -10;
+    		else
+    			phi = 10; 
+    	}
+    	else{
+    		if(o > t)
+    			phi = 10;
+    		else
+    			phi = -10;
+    	}
+    	return phi;
+    }
+
+    public double getControl  (int p, int i)
+    {
+	Player player = getPlayer (p);
+	if (i == 1) {
+	    return player.vel;
+	}
+	else {
+	    return player.phi;
+	}
+    }
+    
+
+    public boolean triesKick (int p)
+    {
+    	double x = sensors.getX(myteam, p);
+    	if(adjustOrientation(p))
+    		if((onLeft && x > 75) || (!onLeft && x < 25))
+    			return true;
+
+        return false;
+    }
+    
+
+    public void kickSuccessful (int p)
+    {
+    }
+    
+
+    public boolean triesGrab (int p)
+    {
+        getPlayer(p).tryGrab = true;
+        return true;
+    }
+    
+
+    public void grabSuccessful (int p)
+    {
+    	System.out.println( "Player " + p +"grabSuccessful ");
+    }
+    
+
+    void updateLocations ()
+    {
+	for (Player p: players) {
+	    p.tryKick = false;
+	    p.x = sensors.getX (myteam, p.playerNum);
+	    p.y = sensors.getY (myteam, p.playerNum);
+	    p.theta = sensors.getTheta (myteam, p.playerNum);
+            p.distToBall = distance (sensors.getBallX(), sensors.getBallY(), p.x,p.y);
+            if ( (sensors.isBallHeld()) && (sensors.ballHeldByTeam() == myteam) && p.playerNum == sensors.ballHeldByPlayer()) {
+                p.hasBall = true;
+            }
+            else {
+                p.hasBall = false;
+            }
+	}
+    }
+
+    Player getPlayer (int k)
+    {
+	for (Player player: players) {
+	    if (player.playerNum == k) {
+		return player;
+	    }
+	}
+	return null;
+    }
+
+
+    double distance (double x1, double y1, double x2, double y2)
+    {
+	return Math.sqrt ( (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) );
+    }
+
+    public void startDebug ()
+    {
+        debug = true;
+    }
+
+}
