@@ -39,7 +39,7 @@ public class CarGUI extends JPanel {
     double initX=50, initY=75, initTheta=0;
 
     // Desired end location and attributes at the time of arrival.
-    double endX=550, endY=initY, endTheta=0, endV;
+    double endX=2400, endY=initY, endTheta=0, endV;
 
     // The GUI uses a simulator and a controller.
     CarSimulator carSim = null;
@@ -124,6 +124,7 @@ public class CarGUI extends JPanel {
         // Target.
         g.setColor (Color.green);
         int drawX = (int)endX - 5;
+        //int drawX = 2400 - 5;
         int drawY = (int)endY + 5;
         g.fillOval (drawX,D.height-drawY, 10,10);
 
@@ -155,7 +156,10 @@ public class CarGUI extends JPanel {
 
         // The car draws itself (possibly using an affine transform).
         if (carSim != null) {
+            if(carSim.getX() > 1200)
+                initialAllCar();
             carSim.draw (g2, D);
+
         }
         //upcoming cars
         if(carSims != null){
@@ -179,7 +183,20 @@ public class CarGUI extends JPanel {
         g.drawString (topMessage, 20, 30);
     }
     
-
+    void initialAllCar(){
+        double x = carSim.getX() - 1200;
+        double y = carSim.getY();
+        double Theta = carSim.getTheta();
+        carSim.init(x, y, Theta, obstacles);
+        if(carSims != null){
+            for(CarSimulator sim: carSims){
+                x = sim.getX() - 1200;
+                y = sim.getY();
+                Theta = sim.getTheta();
+                sim.init(x, y, Theta, obstacles);
+            }
+        }
+    }
     ////////////////////////////////////////////////////////////////////////
     // Animation
 
@@ -310,8 +327,11 @@ public class CarGUI extends JPanel {
             carSims = new ArrayList<CarSimulator>();
             carSimP.init(150, initY, initTheta, obstacles);
             carSims.add(carSimP);
+            carSimP = new DubinCarSimulator(false);
+            carSimP.init(600, initY, initTheta, obstacles);
+            carSims.add(carSimP);
             int dist = 50;
-            for(int i = 1; i <= 3; i++){
+            for(int i = 1; i <= 4; i++){
                 CarSimulator sim = new DubinCarSimulator(false);
                 sim.init(dist, 125, Math.PI, obstacles);
                 carSims.add(sim);
@@ -399,11 +419,11 @@ public class CarGUI extends JPanel {
 	// Now that the controls are known, apply them and
 	// get the new position.
 	carSim.nextStep (control1, control2, delT);
-    carSimP.nextStep(5, 5, delT);
-    for(int i = 1; i < carSims.size(); i++){
+    //carSimP.nextStep(5, 5, delT);
+    for(int i = 0; i < carSims.size(); i++){
         CarSimulator sim = carSims.get(i);
         int v = 5;
-        if(i == carSims.size() - 1)
+        if(i > carSims.size() - 3)
             v = 4;
         sim.nextStep(v, v, delT);
     }
@@ -657,7 +677,7 @@ public class CarGUI extends JPanel {
     void makeFrame ()
     {
         JFrame frame = new JFrame ();
-        frame.setSize (1000, 700);
+        frame.setSize (1200, 700);
         frame.setTitle ("Car GUI and Simulator");
         Container cPane = frame.getContentPane();
         cPane.add (makeBottomPanel(), BorderLayout.SOUTH);
