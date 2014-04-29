@@ -9,10 +9,11 @@ public class DubinCarControllerLuo implements CarController{
     ArrayList<Rectangle2D.Double> obstacles;
     SensorPack sensors; 
     ArrayList<CarSimulator> carSims;
+    int current;
 
     // Are the two controls accelerators?
     boolean isAccelModel;
-    boolean overtake;
+    boolean[] overtake;
 
 
     public void init (double initX, double initY, double initTheta, double endX, double endY, double endTheta, ArrayList<Rectangle2D.Double> obstacles, SensorPack sensors, ArrayList<CarSimulator> carSims)
@@ -20,7 +21,7 @@ public class DubinCarControllerLuo implements CarController{
         this.obstacles = obstacles;
         this.sensors = sensors;
         this.carSims = carSims;
-        overtake = false;
+        overtake = new boolean[2];
 
     }
     
@@ -43,7 +44,7 @@ public class DubinCarControllerLuo implements CarController{
     	double theTa = sensors.getTheta();
     	System.out.println("----changeLane-----");
     	System.out.println("X " + x + " Y " + y + " Theta " + theTa);
-    	if(y < 100 && Math.PI / 6 - theTa > 0.2){
+    	if(y < 100 && Math.PI / 6 - theTa > 0.1){
     		mu2 = 10;
     		mu1 = 6;
     	}
@@ -64,22 +65,23 @@ public class DubinCarControllerLuo implements CarController{
     	
     }
     public boolean isOvertake(double x, double y){
-    	double px = carSims.get(0).getX();
-    	double py = carSims.get(0).getY();
+    	double px = carSims.get(current).getX();
+    	double py = carSims.get(current).getY();
     	if(x - px > 90 && py < y)
     		return true;
     	return false;
     }
     public boolean timeForOvertake(double x, double y){
-    	double px = carSims.get(0).getX();
-    	double py = carSims.get(0).getY();
-    	for(int i = 1; i < carSims.size(); i++){
+    	double px = carSims.get(current).getX();
+    	double py = carSims.get(current).getY();
+    	for(int i = 2; i < carSims.size(); i++){
     		double xx = carSims.get(i).getX();
     		if(xx < x && xx + 50 > x){
-    			//System.out.println("XX - x " + (xx - x));
     			return false;
     		}
-    		if(xx > x && xx - x < 600){
+    		if(xx > x && xx - x < 500){
+    			if(current == 1)
+    				System.out.println("XX - x " + (xx - x));
     			return false;
     		}
     	}
@@ -92,7 +94,7 @@ public class DubinCarControllerLuo implements CarController{
     	double theTa = sensors.getTheta();
     	System.out.println("backToLane");
     	System.out.println("X " + x + " Y " + y + " Theta " + theTa);
-    	if(y > 100 && ((theTa - Math.PI * 11 / 6 > 0.05) || theTa < 0.02)){
+    	if(y > 100 && ((theTa - Math.PI * 11 / 6 > 0.05) || theTa < 0.1)){
     		mu1 = 10;
     		mu2 = 6;
     	}
@@ -105,7 +107,7 @@ public class DubinCarControllerLuo implements CarController{
     		mu2 = 10;
     	}
     	else{
-    		overtake = true;
+    		overtake[current] = true;
     		mu1 = 10;
     		mu2 = 10;
     	}
@@ -115,8 +117,15 @@ public class DubinCarControllerLuo implements CarController{
     public void move ()
     {
     	double x = sensors.getX();
-    	double y = sensors.getY(); 
-    	if(overtake){
+    	double y = sensors.getY();
+    	current = 0;
+    	for(int i = 0; i < overtake.length; i++){
+    		if(!overtake[i]){
+    			current = i;
+    			break;
+    		}
+    	}
+    	if(overtake[current]){
     		mu1 = 5;
     		mu2 = 5;
     	}
@@ -124,10 +133,10 @@ public class DubinCarControllerLuo implements CarController{
         	changeLane(x, y);
         else if(isOvertake(x, y)){
         	backToLane(x, y);
-        	System.out.println("overtake successfully");
+        	System.out.println("overtake successfully " + current);
         }
         DubinCarSimulator sim = (DubinCarSimulator) carSims.get(0);
-        System.out.println("velocity " + sim.getV());
+        //System.out.println("velocity " + sim.getV());
     }
     
     public void draw (Graphics2D g2, Dimension D)
